@@ -1,0 +1,212 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            height: 100vh;
+        }
+
+        #app {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 20px;
+        }
+
+        #rooms-section {
+            width: 200px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+
+        #chat-section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        #messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fff;
+        }
+
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background: #f0f0f0;
+        }
+
+        .system-message {
+            background: #e8f5e9;
+            color: #030303;
+        }
+
+        #message-form {
+            display: flex;
+            padding: 20px;
+            border-top: 1px solid #ddd;
+        }
+
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+        }
+
+        button {
+            background: #fefffe;
+            color: rgb(5, 5, 5);
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #dbd8d8;
+        }
+
+        .room-button {
+            width: 100%;
+            margin: 5px 0;
+            padding: 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+        }
+
+        .room-button.active {
+            background: #0c0c0c;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="rooms-section">
+            <h3>Chat Rooms</h3>
+            <button class="room-button" onclick="joinRoom('general')">General</button>
+            <button class="room-button" onclick="joinRoom('tech')">Tech</button>
+            <button class="room-button" onclick="joinRoom('random')">Random</button>
+        </div>
+        <div id="chat-section">
+            <div id="messages"></div>
+            <form id="message-form">
+                <input type="text" id="message-input" placeholder="Type your message..." required>
+                <button type="submit">Send</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let currentRoom = null;
+
+        // Conectar ao WebSocket
+        function connect() {
+            ws = new WebSocket('ws://localhost:3000');
+            
+            ws.onopen = () => {
+                console.log('Connected to server');
+                if (currentRoom) {
+                    joinRoom(currentRoom);
+                }
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                displayMessage(message);
+            };
+
+            ws.onclose = () => {
+                console.log('Disconnected from server');
+                setTimeout(connect, 1000); // Reconectar automaticamente
+            };
+        }
+
+        connect();
+
+        // Entrar em uma sala
+        function joinRoom(roomName) {
+            if (currentRoom === roomName) return;
+
+            // Atualizar botões das salas
+            document.querySelectorAll('.room-button').forEach(button => {
+                button.classList.remove('active');
+                if (button.textContent.toLowerCase() === roomName) {
+                    button.classList.add('active');
+                }
+            });
+
+            // Limpar mensagens anteriores
+            document.getElementById('messages').innerHTML = '';
+
+            // Se já estiver em uma sala, sair dela primeiro
+            if (currentRoom) {
+                ws.send(JSON.stringify({
+                    type: 'leave',
+                    room: currentRoom
+                }));
+            }
+
+            currentRoom = roomName;
+            
+            ws.send(JSON.stringify({
+                type: 'join',
+                room: roomName
+            }));
+        }
+
+        // Exibir mensagem
+        function displayMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            if (message.type === 'system') {
+                messageElement.classList.add('system-message');
+            }
+            
+            messageElement.textContent = message.content;
+            messagesDiv.appendChild(messageElement);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        // Enviar mensagem
+        document.getElementById('message-form').onsubmit = (e) => {
+            e.preventDefault();
+            
+            const input = document.getElementById('message-input');
+            const content = input.value.trim();
+            
+            if (content && currentRoom) {
+                ws.send(JSON.stringify({
+                    type: 'message',
+                    room: currentRoom,
+                    content: content
+                }));
+                
+                input.value = '';
+            }
+        };
+    </script>
+</body>
+</html>

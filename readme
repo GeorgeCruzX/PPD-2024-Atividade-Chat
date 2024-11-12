@@ -1,0 +1,12 @@
+Para executar o projeto:
+
+1 - Instale as dependências:
+
+npm init -y
+npm install ws
+
+2 - Salve os arquivos conforme mostrado acima
+
+3 - Execute o servidor:
+
+node server.js
